@@ -1,5 +1,6 @@
 #include <EEPROM.h>
 #include <LUFA.h>
+#include "nintendo.h"
 #include "program.h"
 #include <Adafruit_CircuitPlayground.h>
 #include <Wire.h>
