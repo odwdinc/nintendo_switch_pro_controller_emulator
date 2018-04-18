@@ -78,8 +78,6 @@ class NS:
 	           "ABS_X" : "LX", 
 	           "ABS_RY" : "RY",	
 	           "ABS_RX": "RX", 
-	           "ABS_Z": 6, 
-	           "ABS_RZ": 7,
 	}
 
 	JoyoOptionsHat = {
@@ -132,6 +130,8 @@ class NS:
 		"BTN_THUMBR": [SWITCH_RCLICK,False],
 		"ABS_HAT0X": [SWITCH_HOME,False],
 		"ABS_HAT0Y": [SWITCH_CAPTURE,False],
+		"ABS_Z": [SWITCH_ZL,False], 
+		"ABS_RZ": [SWITCH_ZR,False],
 	}
 	joyLoopTime = 0
 	
@@ -152,59 +152,76 @@ class NS:
 				NeedsUpdate = True
 		return NeedsUpdate
 
-	def joystickControl(self,testing=False,timeout = 0):
+	def printRunCommands(self):
+		print("Run Finished\n")
+		self.sendUSBReport()
+		for reportCMD in self.recoredJoystickCommandSet:
+			print (reportCMD,",")
+	
+
+	def joystickControl(self,testing=False,timeout = 0, stopButton=0):
 		min_Stick_Map = 5000
 		max_Stick_Map = 33000
 		while 1:
+			prosingTime = current_milli_time()
+			event = get_gamepad()[0]
 			if self.recoredJoystickCommandCount == 0:
 				self.RunStart = current_milli_time()
-			elif  self.recoredJoystickCommandCount == 1:
-				print("Run Started")
 
 			if timeout > 0:
 				if (current_milli_time() - self.RunStart)/1000 > timeout :
-					print("Run Finished\n")
-					for reportCMD in self.recoredJoystickCommandSet:
-						print (reportCMD)
+					self.printRunCommands()
 					break
-
-			events = get_gamepad()
-			for event in events:
-				if event.code not in self.JoyoOptionsRemove:
-					if event.code in self.JoyoOptions:
-						if event.state is 0:
-							self.JoyoOptions[event.code][1] = False
-						else:
-							self.JoyoOptions[event.code][1] = True
-						JoyoOptionsbuttons = 0
-						for button in self.JoyoOptions:
-							if self.JoyoOptions[button][1]:
-								JoyoOptionsbuttons = JoyoOptionsbuttons | self.JoyoOptions[button][0]
-						self.JoyString["SWITCH"] = JoyoOptionsbuttons
-					elif event.code in self.JoyoOptionsAnalog:
-						if event.code is "ABS_X" or event.code is "ABS_RX":
-							event.state = event.state*-1
-						if (event.state > min_Stick_Map or event.state < -1*min_Stick_Map):
-							if event.state > 0:
-								event.state = int(interp(event.state,[min_Stick_Map,max_Stick_Map],[self.STICK_CENTER,self.STICK_MIN]))
-								if event.state < self.STICK_MIN:
-									event.state = self.STICK_MIN;
-							else:
-								event.state = int(interp(event.state,[-1*max_Stick_Map,-1*min_Stick_Map],[self.STICK_MAX,self.STICK_CENTER]))
-								if event.state > self.STICK_MAX:
-									event.state = self.STICK_MAX;
-
-							
-						else:
-							event.state = self.STICK_CENTER
-
-						if self.JoyoOptionsAnalog[event.code] in self.JoyString:
-							if self.JoyString[self.JoyoOptionsAnalog[event.code]] == event.state:
-								pass
-							else:
-								self.JoyString[self.JoyoOptionsAnalog[event.code]] = event.state
+			if event.code not in self.JoyoOptionsRemove:
+				if event.code in self.JoyoOptions:
+					if self.JoyoOptions[event.code][0] is stopButton:
+						self.printRunCommands()
+						break
+					if event.state is 0:
+						self.JoyoOptions[event.code][1] = False
 					else:
-						print(event.ev_type, event.code, event.state)
+						self.JoyoOptions[event.code][1] = True
+				elif event.code in self.JoyoOptionsAnalog:
+					if event.code is "ABS_X" or event.code is "ABS_RX":
+						event.state = event.state*-1
+					if (event.state > min_Stick_Map or event.state < -1*min_Stick_Map):
+						if event.state > 0:
+							event.state = int(interp(event.state,[min_Stick_Map,max_Stick_Map],[self.STICK_CENTER,self.STICK_MIN]))
+							if event.state < self.STICK_MIN:
+								event.state = self.STICK_MIN;
+						else:
+							event.state = int(interp(event.state,[-1*max_Stick_Map,-1*min_Stick_Map],[self.STICK_MAX,self.STICK_CENTER]))
+							if event.state > self.STICK_MAX:
+								event.state = self.STICK_MAX;
+					else:
+						event.state = self.STICK_CENTER
+
+					if self.JoyoOptionsAnalog[event.code] in self.JoyString:
+						step = 43
+						center = 22
+						if event.state <= step:													#self.STICK_MIN - 43
+							event.state = self.STICK_MIN					#0
+						elif event.state <= step*2 and event.state > step*1:					#43 - 86
+							event.state = self.STICK_MIN+(step*1)+22		#65
+						elif event.state < self.STICK_CENTER and event.state > step*2:			#86 - self.STICK_CENTER
+							event.state = self.STICK_MIN+(step*2)+22		#108
+						elif event.state <= step*4 and event.state > self.STICK_CENTER:			#self.STICK_CENTER -172
+							event.state = self.STICK_MIN+(step*3)+22		#151
+						elif event.state <= step*5 and event.state > step*4:					#172 - 215
+							event.state = self.STICK_MIN+(step*4)+22		#194
+						elif event.state <= self.STICK_MAX and event.state > step*5: 			#215 self.STICK_MAX
+							event.state = self.STICK_MAX 					#255
+						self.JoyString[self.JoyoOptionsAnalog[event.code]] = event.state
+				else:
+					print(event.ev_type, event.code, event.state)
+
+
+				JoyoOptionsbuttons = 0
+				for button in self.JoyoOptions:
+					if self.JoyoOptions[button][1]:
+						JoyoOptionsbuttons = JoyoOptionsbuttons | self.JoyoOptions[button][0]
+				self.JoyString["SWITCH"] = JoyoOptionsbuttons
+
 				if self.reportCheck(self.JoyString,self.JoyStringOut):
 					if testing:
 						self.sendUSBReportCheck(self.JoyStringOut["LX"]);
@@ -212,8 +229,13 @@ class NS:
 						self.sendUSBReportCheck(self.JoyStringOut["RX"]);
 						self.sendUSBReportCheck(self.JoyStringOut["RY"]);
 						print(self.JoyStringOut)
+						if self.recoredJoystickCommandCount< 2:
+							self.recoredJoystickCommandCount += 1
 					else:
+						
+						self.sendUSBReport(self.JoyStringOut["SWITCH"],self.JoyStringOut["HAT"],self.JoyStringOut["LX"],self.JoyStringOut["LY"],self.JoyStringOut["RX"],self.JoyStringOut["RY"])
 						mills = current_milli_time()
+						#mills = mills - (mills - prosingTime)
 						if (self.joyLoopTime == 0):
 							self.joyLoopTime = mills
 						
@@ -227,17 +249,20 @@ class NS:
 							self.recoredJoystickCommandSet[self.recoredJoystickCommandCount]["TIME"] = 0
 							self.recoredJoystickCommandCount +=1
 
-						if(self.recoredJoystickCommandCount > 1):
-							#print(self.recoredJoystickCommandSet[self.recoredJoystickCommandCount-2],self.recoredJoystickCommandCount)
-							pass
-
-						self.JoyString["TIME"]=0
-						self.JoyStringOut["TIME"]=0
-
-						self.joyLoopTime = mills
-						self.sendUSBReport(self.JoyStringOut["SWITCH"],self.JoyStringOut["HAT"],self.JoyStringOut["LX"],self.JoyStringOut["LY"],self.JoyStringOut["RX"],self.JoyStringOut["RY"])
-						#print("\n")
+						if(self.recoredJoystickCommandCount > 1 and timeout == 0 and stopButton==0):
+							print(self.recoredJoystickCommandSet[self.recoredJoystickCommandCount-2],self.recoredJoystickCommandCount)
 						sleep(.025)
+						self.joyLoopTime = current_milli_time()
+
+
+	def RunJoystickReport(self, reportList):
+		for report in reportList:
+			mills = current_milli_time()
+			self.sendUSBReport(report["SWITCH"],report["HAT"],report["LX"],report["LY"],report["RX"],report["RY"])
+			timedelay = (current_milli_time() - mills)/1000
+			sleep(report["TIME"]+.025)
+
+		self.sendUSBReport()
 	def keyControl(self):
 		while 1:
 				events = get_key()
