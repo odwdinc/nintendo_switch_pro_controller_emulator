@@ -1,9 +1,13 @@
 import io
-from time import sleep
+from time import sleep,time
 import struct
-"""Simple example showing how to get keyboard events.""""""Simple example showing how to get keyboard events."""
-
+from numpy import interp
 from inputs import get_key
+from inputs import get_gamepad
+import copy
+current_milli_time = lambda: int(round(time() * 1000))
+def milli_time_to_report_time(x): return  int(round(x/ 1000/.024))
+
 class NS:
 
 	SWITCH_Y       = 0x01
@@ -54,6 +58,7 @@ class NS:
 	THROW = b'q'
 	TRIGGERS = b'r'
 	NOTHING = b's'
+
 	ReportPlaybackList=["HatJump","Jump"]
 	ser = None
 
@@ -65,11 +70,174 @@ class NS:
 	           "KEY_LEFTCTRL": A, #A
 	           "KEY_LEFTSHIFT": Y, #Y
 	}
+	JoyoOptionsRemove = {
+		"SYN_REPORT" : 1,
+	}
+	JoyoOptionsAnalog = {
+	           "ABS_Y": "LY",	
+	           "ABS_X" : "LX", 
+	           "ABS_RY" : "RY",	
+	           "ABS_RX": "RX", 
+	           "ABS_Z": 6, 
+	           "ABS_RZ": 7,
+	}
+
+	JoyoOptionsHat = {
+	           "ABS_Y": 2,	
+	           "ABS_X" : 3, 
+	           "ABS_RY" : 4,	
+	           "ABS_RX": 5, 
+	           "ABS_Z": 6, 
+	           "ABS_RZ": 7,
+	}
+
+	JoyStringOut = {
+	"SWITCH": 	0,
+	"HAT": 		STICK_CENTER,
+	"LX":  		STICK_CENTER,
+	"LY":		STICK_CENTER,
+	"RX":		STICK_CENTER,
+	"RY":		STICK_CENTER,
+	"TIME":		0
+	}
+
+	JoyString = {
+	"SWITCH": 	0,
+	"HAT": 		STICK_CENTER,
+	"LX":  		STICK_CENTER,
+	"LY":		STICK_CENTER,
+	"RX":		STICK_CENTER,
+	"RY":		STICK_CENTER,
+	"TIME":		0
+	}
+
+
+	CommandlistCheck = {
+		36: "$",
+		35: "#",
+		33: "!",
+		64: "@"
+	}
+
+	JoyoOptions={
+		"BTN_WEST": [SWITCH_Y,False],
+		"BTN_SOUTH": [SWITCH_B,False],
+		"BTN_EAST": [SWITCH_A,False],
+		"BTN_NORTH": [SWITCH_X,False],
+		"BTN_TL": [SWITCH_L,False],
+		"BTN_TR": [SWITCH_R,False],
+		"BTN_START": [SWITCH_MINUS,False],
+		"BTN_SELECT": [SWITCH_PLUS,False],
+		"BTN_THUMBL": [SWITCH_LCLICK,False],
+		"BTN_THUMBR": [SWITCH_RCLICK,False],
+		"ABS_HAT0X": [SWITCH_HOME,False],
+		"ABS_HAT0Y": [SWITCH_CAPTURE,False],
+	}
+	joyLoopTime = 0
+	
 
 	sendcommand = {}
+
+	recoredJoystickCommandSet = []
+	recoredJoystickCommandCount = 0
 	def __init__(self,ser):
 		self.ser = ser
 
+	def reportCheck(self, jb,jbo):
+		NeedsUpdate = False
+		for byew in jb:
+			if jbo[byew] != jb[byew]:
+				temp = jb[byew]
+				jbo[byew] = temp
+				NeedsUpdate = True
+		return NeedsUpdate
+
+	def joystickControl(self,testing=False,timeout = 0):
+		min_Stick_Map = 5000
+		max_Stick_Map = 33000
+		while 1:
+			if self.recoredJoystickCommandCount == 0:
+				self.RunStart = current_milli_time()
+			elif  self.recoredJoystickCommandCount == 1:
+				print("Run Started")
+
+			if timeout > 0:
+				if (current_milli_time() - self.RunStart)/1000 > timeout :
+					print("Run Finished\n")
+					for reportCMD in self.recoredJoystickCommandSet:
+						print (reportCMD)
+					break
+
+			events = get_gamepad()
+			for event in events:
+				if event.code not in self.JoyoOptionsRemove:
+					if event.code in self.JoyoOptions:
+						if event.state is 0:
+							self.JoyoOptions[event.code][1] = False
+						else:
+							self.JoyoOptions[event.code][1] = True
+						JoyoOptionsbuttons = 0
+						for button in self.JoyoOptions:
+							if self.JoyoOptions[button][1]:
+								JoyoOptionsbuttons = JoyoOptionsbuttons | self.JoyoOptions[button][0]
+						self.JoyString["SWITCH"] = JoyoOptionsbuttons
+					elif event.code in self.JoyoOptionsAnalog:
+						if event.code is "ABS_X" or event.code is "ABS_RX":
+							event.state = event.state*-1
+						if (event.state > min_Stick_Map or event.state < -1*min_Stick_Map):
+							if event.state > 0:
+								event.state = int(interp(event.state,[min_Stick_Map,max_Stick_Map],[self.STICK_CENTER,self.STICK_MIN]))
+								if event.state < self.STICK_MIN:
+									event.state = self.STICK_MIN;
+							else:
+								event.state = int(interp(event.state,[-1*max_Stick_Map,-1*min_Stick_Map],[self.STICK_MAX,self.STICK_CENTER]))
+								if event.state > self.STICK_MAX:
+									event.state = self.STICK_MAX;
+
+							
+						else:
+							event.state = self.STICK_CENTER
+
+						if self.JoyoOptionsAnalog[event.code] in self.JoyString:
+							if self.JoyString[self.JoyoOptionsAnalog[event.code]] == event.state:
+								pass
+							else:
+								self.JoyString[self.JoyoOptionsAnalog[event.code]] = event.state
+					else:
+						print(event.ev_type, event.code, event.state)
+				if self.reportCheck(self.JoyString,self.JoyStringOut):
+					if testing:
+						self.sendUSBReportCheck(self.JoyStringOut["LX"]);
+						self.sendUSBReportCheck(self.JoyStringOut["LY"]);
+						self.sendUSBReportCheck(self.JoyStringOut["RX"]);
+						self.sendUSBReportCheck(self.JoyStringOut["RY"]);
+						print(self.JoyStringOut)
+					else:
+						mills = current_milli_time()
+						if (self.joyLoopTime == 0):
+							self.joyLoopTime = mills
+						
+						if self.recoredJoystickCommandCount > 0:
+							delayTime = (mills - self.joyLoopTime)/1000
+							self.recoredJoystickCommandSet[self.recoredJoystickCommandCount-1]["TIME"] = delayTime
+							self.recoredJoystickCommandSet.append(copy.deepcopy(self.JoyStringOut))
+							self.recoredJoystickCommandCount += 1
+						else:
+							self.recoredJoystickCommandSet.append(copy.deepcopy(self.JoyStringOut))
+							self.recoredJoystickCommandSet[self.recoredJoystickCommandCount]["TIME"] = 0
+							self.recoredJoystickCommandCount +=1
+
+						if(self.recoredJoystickCommandCount > 1):
+							#print(self.recoredJoystickCommandSet[self.recoredJoystickCommandCount-2],self.recoredJoystickCommandCount)
+							pass
+
+						self.JoyString["TIME"]=0
+						self.JoyStringOut["TIME"]=0
+
+						self.joyLoopTime = mills
+						self.sendUSBReport(self.JoyStringOut["SWITCH"],self.JoyStringOut["HAT"],self.JoyStringOut["LX"],self.JoyStringOut["LY"],self.JoyStringOut["RX"],self.JoyStringOut["RY"])
+						#print("\n")
+						sleep(.025)
 	def keyControl(self):
 		while 1:
 				events = get_key()
@@ -105,16 +273,31 @@ class NS:
 
 		self.ser.write(b'#')
 		self.ser.write(cmdStr)
-		print(cmdStr,len(cmdStr))
+		#print(cmdStr,len(cmdStr))
+
+	def sendUSBReportCheck(self, report):
+		while report in self.CommandlistCheck:
+			#print("Yah found "+self.CommandlistCheck[report])
+			report+=1
+		if report > 255:
+			report = 255
+		if report < 0:
+			report = 0
+		return report
 
 
 	def sendUSBReport(self,SWITCH=0,HAT = HAT_CENTER,LX = STICK_CENTER,LY = STICK_CENTER,RX = STICK_CENTER,RY = STICK_CENTER):
 		# report info
 		# @[SWITCH0][SWITCH1][HAT][LX][LY][RX][RY]
+		LX = self.sendUSBReportCheck(LX);
+		LY = self.sendUSBReportCheck(LY);
+		RX = self.sendUSBReportCheck(RX);
+		RY = self.sendUSBReportCheck(RY);
+
 		SWITCH0, SWITCH1 = struct.pack('<H', SWITCH)
-		rpstring = b''+bytes([SWITCH0])+bytes([SWITCH1])+bytes([HAT])+bytes([LX])+bytes([LY])+bytes([RX])+bytes([RY])
-		print (rpstring)
-		self.ser.write(b'@')
+		rpstring = b'@'+bytes([SWITCH0])+bytes([SWITCH1])+bytes([HAT])+bytes([LX])+bytes([LY])+bytes([RX])+bytes([RY])
+		#print(rpstring,len(rpstring))
+		#self.ser.write(b'@')
 		self.ser.write(rpstring)
 
 	def sendUSBReportList(self, ReportPlayback):

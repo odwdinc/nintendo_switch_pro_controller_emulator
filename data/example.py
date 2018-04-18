@@ -1,5 +1,6 @@
 import serial
 from N_Switch import NS
+from time import sleep
 """
 	runCommandPlayback(commandPlayback,savetoEEPROM=False)
 	sendUSBReport(SWITCH=0,HAT = HAT_CENTER,LX = STICK_CENTER,LY = STICK_CENTER,RX = STICK_CENTER,RY = STICK_CENTER)
