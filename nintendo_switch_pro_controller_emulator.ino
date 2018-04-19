@@ -253,7 +253,7 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
             Serial1.write('.');
             TempReport = CommandPROCESS(ReportData, prossing);
             memcpy(ReportData, &TempReport, sizeof(USB_JoystickReport_Input_t));
-          } else if (in == '@') {
+          } else if (in == '%') {
             int reportlen = Serial1.readBytes(Buffer, 7);
             if (reportlen == 7) {
               TempReport.HAT = Buffer[2];

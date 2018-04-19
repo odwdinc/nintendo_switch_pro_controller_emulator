@@ -114,7 +114,7 @@ class NS:
 		36: "$",
 		35: "#",
 		33: "!",
-		64: "@"
+		37: "%"
 	}
 
 	JoyoOptions={
@@ -313,16 +313,16 @@ class NS:
 
 	def sendUSBReport(self,SWITCH=0,HAT = HAT_CENTER,LX = STICK_CENTER,LY = STICK_CENTER,RX = STICK_CENTER,RY = STICK_CENTER):
 		# report info
-		# @[SWITCH0][SWITCH1][HAT][LX][LY][RX][RY]
+		# %[SWITCH0][SWITCH1][HAT][LX][LY][RX][RY]
 		LX = self.sendUSBReportCheck(LX);
 		LY = self.sendUSBReportCheck(LY);
 		RX = self.sendUSBReportCheck(RX);
 		RY = self.sendUSBReportCheck(RY);
 
 		SWITCH0, SWITCH1 = struct.pack('<H', SWITCH)
-		rpstring = b'@'+bytes([SWITCH0])+bytes([SWITCH1])+bytes([HAT])+bytes([LX])+bytes([LY])+bytes([RX])+bytes([RY])
+		rpstring = b'%'+bytes([SWITCH0])+bytes([SWITCH1])+bytes([HAT])+bytes([LX])+bytes([LY])+bytes([RX])+bytes([RY])
 		#print(rpstring,len(rpstring))
-		#self.ser.write(b'@')
+		#self.ser.write(b'%')
 		self.ser.write(rpstring)
 
 	def sendUSBReportList(self, ReportPlayback):
