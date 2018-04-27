@@ -2,7 +2,6 @@
 #include <LUFA.h>
 #include "nintendo.h"
 #include "program.h"
-#include <Adafruit_CircuitPlayground.h>
 #include <Wire.h>
 #include <SPI.h>
 
@@ -17,6 +16,9 @@ int ypos = 0;
 int bufindex = 0;
 int portsval = 0;
 
+const int ClearButtonPin = 2; 
+const int SwtichButtonPin = 3; 
+
 command prossing;
 bool boot = false;
 command Serialstep[100];
@@ -26,13 +28,16 @@ void setup() {
   // We'll start by performing hardware and peripheral setup.
   SetupHardware();
 
+  pinMode(ClearButtonPin, INPUT);
+  digitalWrite(ClearButtonPin, HIGH);       // turn on pullup resistors
+  
+  pinMode(SwtichButtonPin, INPUT);
+  digitalWrite(SwtichButtonPin, HIGH);       // turn on pullup resistors
+
 
   // We'll then enable global interrupts for our use.
   GlobalInterruptEnable();
 
-
-
-  CircuitPlayground.begin();
   // Once that's done, we'll enter an infinite loop.
 
   Serial1.begin(19200);
@@ -42,13 +47,8 @@ void setup() {
 
 void loop() {
   // We need to run our task to process and deliver data for our IN and OUT endpoints.
-
-
-  CircuitPlayground.redLED(HIGH);
   HID_Task();
-  CircuitPlayground.redLED(LOW);
   USB_USBTask();
-
 }
 
 
@@ -211,6 +211,38 @@ void prossesCommandSet() {
     }
   }
 }
+
+void LoadEEPROM() {
+  int CommandLen = EEPROM.read(0);
+  if (CommandLen > 0) {
+    memset(Buffer, 0, sizeof(Buffer));
+    for (int i = 0; i < CommandLen; i++) {
+      Buffer[i] = EEPROM.read(i + 1);
+    }
+    prossesCommandSet();
+    if (Serialstepcount > 0) {
+      //good
+    } else {
+      //error
+    }
+  } else {
+    //error
+  }
+  delay(200);
+
+}
+
+bool slideSwitch(){
+  return digitalRead(SwtichButtonPin);
+}
+
+void clearButton() {
+  if(digitalRead(ClearButtonPin) == 0){
+    Serialstepcount = 0;
+    report = false;
+  }
+}
+
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 
@@ -244,7 +276,7 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 
     case PROCESS:
 
-      if (CircuitPlayground.slideSwitch()) {
+      if (slideSwitch()) {
         if (Serial1.available() > 0) {
           byte in = Serial1.read();
           if (in == '$') {
@@ -272,49 +304,16 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
             prossesCommandSet();
             if (SaveToEprom) {
               if ( prossed > 1023) {
-                flashRed();
               } else {
-                flashGreen();
                 EEPROM.write(0, prossed);
                 for (int i = 1; i < prossed + 1; i++) {
                   EEPROM.write(i, Buffer[i]);
                 }
               }
-              delay(200);
-              flash(0);
             }
           }
         }
-        if ( CircuitPlayground.leftButton()) {
-          Serialstepcount = 0;
-          report = false;
-          flashRed();
-          delay(200);
-          flash(0);
-        }
-        if ( CircuitPlayground.rightButton()) {
-          int CommandLen = EEPROM.read(0);
-          if (CommandLen > 0) {
-            flashGreen();
-            memset(Buffer, 0, sizeof(Buffer));
-            for (int i = 0; i < CommandLen; i++) {
-              Buffer[i] = EEPROM.read(i + 1);
-            }
-            prossesCommandSet();
-            delay(200);
-            flash(0);
-            delay(200);
-            if (Serialstepcount > 0) {
-              flashGreen();
-            } else {
-              flashRed();
-            }
-          } else {
-            flashRed();
-          }
-          delay(200);
-          flash(0);
-        }
+        clearButton();
         if (Serialstepcount == 0) {
           duration_count = 0;
           bufindex = 0;
@@ -334,7 +333,6 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
         }
         memcpy(ReportData, &TempReport, sizeof(USB_JoystickReport_Input_t));
       }
-      CircuitPlayground.strip.show();
       break;
   }
   // Prepare to echo this report

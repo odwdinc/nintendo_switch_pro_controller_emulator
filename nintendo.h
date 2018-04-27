@@ -44,7 +44,6 @@
 #include <avr/pgmspace.h>
 #include <string.h>
 #include "program.h"
-#include <Adafruit_CircuitPlayground.h>
 #include <Wire.h>
 #include <SPI.h>
   /* Includes: */
@@ -139,39 +138,6 @@ typedef enum {
 } State_t;
 State_t state = SYNC_CONTROLLER;
 
-static int speeds[] = { 5, 10, 50, 100 };
-int currentSpeed = 0;
-
-
-static void setPixel(int pixal,int pos){
-  uint32_t offset = millis() / speeds[currentSpeed];
-  if(pixal > 9){
-    pixal-='a';
-  }
-  if(pos > 9){
-    pos-='a';
-  }
-  if(pos >= 0){
-    CircuitPlayground.strip.setPixelColor(pixal, CircuitPlayground.colorWheel(((pos * 256 / 10) + offset) & 255));
-  }else{
-    CircuitPlayground.strip.setPixelColor(pixal, 0,0,0);
-  }
-}
-
-static void flash(uint32_t color){
-  for(int i=0; i<10; i++){
-     CircuitPlayground.strip.setPixelColor(i, color);
-  }
-  CircuitPlayground.strip.show();
-}
-
-static void flashRed(){
-  flash(0xFF0000);
-}
-
-static void flashGreen(){
-  flash(0x00FF00);
-}
 
 
 
@@ -181,134 +147,97 @@ static USB_JoystickReport_Input_t const CommandPROCESS(USB_JoystickReport_Input_
       {
 
         case UP:
-          setPixel(0,0);
-          setPixel(9,0);
           ReportData->LY = STICK_MIN;
           Serial1.println("UP");       
           break;
 
         case LEFT:
-          setPixel(1,0);
-          setPixel(2,0);
-          setPixel(3,0);
           ReportData->LX = STICK_MIN;       
           break;
 
         case DOWN:
-          setPixel(4,0);
-          setPixel(5,0);
           ReportData->LY = STICK_MAX;
           Serial1.println("DOWN");       
           break;
 
         case RIGHT:
-          setPixel(7,0);
-          setPixel(6,0);
-          setPixel(8,0);
           ReportData->LX = STICK_MAX;
           Serial1.println("RIGHT");       
           break;
 
         case UP_RIGHT:
-          setPixel(0,0);
-          setPixel(1,0);
-          setPixel(2,0);
           ReportData->LY = STICK_MIN;
           ReportData->LX = STICK_MAX; 
           Serial1.println("UP_RIGHT");
           break;
         case UP_LEFT:
-          setPixel(9,0);
-          setPixel(8,0);
-          setPixel(7,0);
           ReportData->LY = STICK_MIN;
           ReportData->LX = STICK_MIN;
           Serial1.println("UP_LEFT");
           break;
         case DOWN_RIGHT:
-          setPixel(3,0);
-          setPixel(4,0);
-          setPixel(5,0);
           ReportData->LY = STICK_MAX;
           ReportData->LX = STICK_MAX;
           Serial1.println("DOWN_RIGHT");
           break;
         case DOWN_LEFT:
-          setPixel(6,0);
-          setPixel(7,0);
-          setPixel(8,0);
           ReportData->LY = STICK_MAX;
           ReportData->LX = STICK_MIN;
           Serial1.println("DOWN_LEFT");
           break;
 
         case A:
-          setPixel(A,A);
           ReportData->Button |= SWITCH_A;
           Serial1.println("A");
           break;
 
         case B:
-          setPixel(B,B);
           ReportData->Button |= SWITCH_B;
           Serial1.println("B");
           break;
 
         case R:
-          setPixel(R,R);
           ReportData->Button |= SWITCH_R;
           Serial1.println("R");
           break;
           
         case L:
-          setPixel(L,L);
           ReportData->Button |= SWITCH_L;
           Serial1.println("L");
           break;  
           
         case X:
-          setPixel(X,X);
           ReportData->Button |= SWITCH_X;
           Serial1.println("X");
           break;
           
         case Y:
-          setPixel(Y,Y);
           ReportData->Button |= SWITCH_Y;
           Serial1.println("Y");
           break;
 
        case MINUS:
-          setPixel(MINUS,MINUS);
           ReportData->Button |= SWITCH_MINUS;
           Serial1.println("MINUS");
           break;
           
         case PLUS:
-          setPixel(PLUS,PLUS);
           ReportData->Button |= SWITCH_PLUS;
           Serial1.println("PLUS");
           break;
           
         case THROW:
-          setPixel(1,0);
-          setPixel(2,0);
-          setPixel(3,0);
-          setPixel(R,R);
           ReportData->LY = STICK_MIN;       
           ReportData->Button |= SWITCH_R;
           Serial1.println("THROWWN");
           break;
 
         case TRIGGERS:
-          setPixel(1,0);
-          setPixel(8,0);
           ReportData->Button |= SWITCH_L | SWITCH_R;
           Serial1.println("TRIGGERS");
           break;
 
         default:
-          CircuitPlayground.clearPixels();
           ReportData->LX = STICK_CENTER;
           ReportData->LY = STICK_CENTER;
           ReportData->RX = STICK_CENTER;
