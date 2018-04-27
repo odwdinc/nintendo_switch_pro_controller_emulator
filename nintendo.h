@@ -128,7 +128,7 @@ void EVENT_USB_Device_ConfigurationChanged(void);
 void EVENT_USB_Device_ControlRequest(void);
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData);
-
+void LoadEEPROM();
 
 typedef enum {
   SYNC_CONTROLLER,

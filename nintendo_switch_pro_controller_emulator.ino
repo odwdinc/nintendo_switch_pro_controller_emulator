@@ -42,6 +42,7 @@ void setup() {
 
   Serial1.begin(19200);
   Serial1.println("Hello, world?");
+  LoadEEPROM();
   prossing.button = NOTHING;
 }
 
