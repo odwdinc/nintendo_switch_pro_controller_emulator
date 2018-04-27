@@ -1,6 +1,6 @@
 # Nintendo switch pro controller emulator
 
-Allows action to be replayed on nintendo switch using ATmega32u4 Circuit Playground
+Allows action to be replayed on nintendo switch using ATmega32u4 
 
 included Python Lib to allow for updating and live control see data folder.
 
@@ -8,8 +8,25 @@ Moved to Ardino to support easer install and more features.
 
 [Arduino-Lufa](https://github.com/Palatis/Arduino-Lufa)
 
-[Adafruit CircuitPlayground](https://www.adafruit.com/product/3000)
+[ATmega32U4](https://www.amazon.com/OSOYOO-ATmega32U4-arduino-Leonardo-ATmega328/dp/B012FOV17O)
 
+
+# Hardware
+
+Pin 2 is used as a Clear pin for the USB reports 
+  
+  This will stop any running scripts sent over the serial port.
+  
+  Connecting this pin to ground will clear the reports.
+  
+Pin 3 is used as swtich for serial Mode / vs embeded USB reports.
+
+  Connecting this pin Low (ground) will run the embeded USB reports.
+  
+  Default is High Not conected and will run in serial Mode. 
+  
+  If there is any USB reports stored in EEPROM thay will run.
+  
 
 # Examples
 
