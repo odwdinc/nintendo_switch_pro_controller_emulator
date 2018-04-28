@@ -34,8 +34,6 @@ typedef struct {
   Buttons_t button;
   uint16_t duration;
 } command; 
-
-
 static const command SetupStep[] = {
     // Setup controller
   { NOTHING,  100 },

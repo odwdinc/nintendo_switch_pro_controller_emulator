@@ -1,17 +1,10 @@
-#include <SPI.h>
 #include <EEPROM.h>
 #include <LUFA.h>
 #include "nintendo.h"
 #include "program.h"
 #include <Wire.h>
+#include <SPI.h>
 
-//#define SDCardSupport
-
-#ifdef SDCardSupport
-#include <SD.h>
-File myFile;
-
-#endif
 
 #define ECHOES 2
 int echoes = 0;
@@ -22,12 +15,6 @@ int xpos = 0;
 int ypos = 0;
 int bufindex = 0;
 int portsval = 0;
-int IsWriteing = 0;
-
-bool report = false;
-
-USB_JoystickReport_SDRec curentReport;
-uint16_t loopCount = 0;
 
 const int ClearButtonPin = 2; 
 const int SwtichButtonPin = 3; 
@@ -47,227 +34,24 @@ void setup() {
   pinMode(SwtichButtonPin, INPUT);
   digitalWrite(SwtichButtonPin, HIGH);       // turn on pullup resistors
 
+
   // We'll then enable global interrupts for our use.
   GlobalInterruptEnable();
 
   // Once that's done, we'll enter an infinite loop.
 
   Serial1.begin(19200);
-
   Serial1.println("Hello, world?");
   LoadEEPROM();
   prossing.button = NOTHING;
-
-#ifdef SDCardSupport
-  Serial1.print("Initializing SD card...");
-  if (!SD.begin(10)) {
-    Serial1.println("initialization failed!");
-    return;
-  }
-  Serial1.println("initialization done.");
-  readPref();
-
-  HandalFileOpening("log.usb", true);
-  if (myFile) {
-    Serial1.println("Starting Recording..");
-  }
-#endif
-  Serial1.println("prossing..");
 }
 
 void loop() {
   // We need to run our task to process and deliver data for our IN and OUT endpoints.
-
   HID_Task();
   USB_USBTask();
 }
 
-bool playingBack = false;
-
-// Prepare the next report for the host.
-void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
-
-  // Prepare an empty report
-  memset(ReportData, 0, sizeof(USB_JoystickReport_Input_t));
-  ReportData->LX = STICK_CENTER;
-  ReportData->LY = STICK_CENTER;
-  ReportData->RX = STICK_CENTER;
-  ReportData->RY = STICK_CENTER;
-  ReportData->HAT = HAT_CENTER;
-
-  // Repeat ECHOES times the last report
-  if (echoes > 0)
-  {
-    memcpy(ReportData, &last_report, sizeof(USB_JoystickReport_Input_t));
-    echoes--;
-    return;
-  }
-
-  // States and moves management
-  switch (state)
-  {
-
-    case SYNC_CONTROLLER:
-      state = BREATHE;
-      break;
-
-    case BREATHE:
-      state = PROCESS;
-      break;
-
-    case PROCESS:
-      if (Serial1.available() > 0) {
-        byte in = Serial1.read();
-        if (in == '%') {
-          byte Buffer[sizeof(USB_JoystickReport_Input_t)];
-          int reportlen = Serial1.readBytes(Buffer, sizeof(USB_JoystickReport_Input_t));
-          if (reportlen == sizeof(USB_JoystickReport_Input_t)) {
-            memcpy(&TempReport, Buffer, sizeof(USB_JoystickReport_Input_t));
-            report = true;
-          } else {
-            report = false;
-          }
-        }
-
-      }
-      if (!boot) {
-        TempReport = runScript(ReportData, SetupStep, SetupStepSize);
-      } else {
-//#############################################################################################
-//#############################################################################################
-//#############################################################################################
-//          this is the bit to update the script that will run at boot
-//          see program.h for sample FrogCoinestep and FrogCoinestepSize
-
-        TempReport = runScript(ReportData, FrogCoinestep, FrogCoinestepSize);
-
-
-        
-//#############################################################################################
-//#############################################################################################
-//#############################################################################################
-      }
-#ifdef SDCardSupport
-      if (playingBack) {
-        if (loopCount > curentReport.reportDelay) {
-          curentReport = getNextReport();
-        }
-        loopCount++;
-        memcpy(ReportData, &curentReport.report, sizeof(USB_JoystickReport_Input_t));
-      } else {
-#endif
-        memcpy(ReportData, &TempReport, sizeof(USB_JoystickReport_Input_t));
-#ifdef SDCardSupport
-      }
-#endif
-      echoes = ECHOES;
-      break;
-  }
-#ifdef SDCardSupport
-  // Prepare to echo this report
-  if ((TempReport == last_report) == false && playingBack == false) {
-    saveReportToSD(last_report);
-    loopCount = 0;
-  } else {
-    loopCount++;
-  }
-#endif
-  memcpy(&last_report, ReportData, sizeof(USB_JoystickReport_Input_t));
-}
-
-
-#ifdef SDCardSupport
-void readPref() {
-  HandalFileOpening("pref.ini", false);
-  if (myFile) {
-    while (myFile.available()) {
-      Serial1.write(myFile.read());
-    }
-  }
-  HandalFileOpening("log.usb", false);
-  if (myFile) {
-    byte Buffer[sizeof(USB_JoystickReport_SDRec)];
-    while (myFile.available()) {
-      int reportlen = myFile.read(Buffer, sizeof(USB_JoystickReport_SDRec));
-      if (reportlen == sizeof(USB_JoystickReport_SDRec)) {
-        memcpy(&curentReport, Buffer, sizeof(USB_JoystickReport_SDRec));
-        Serial1.print("reportDelay: ");
-        Serial1.print(curentReport.reportDelay, DEC);
-        Serial1.print("  reportButtons: ");
-        Serial1.print(curentReport.report.Button, DEC);
-        Serial1.print("  LX,LY: [");
-        Serial1.print(curentReport.report.LX, DEC);
-        Serial1.print(",");
-        Serial1.print(curentReport.report.LY, DEC);
-        Serial1.print("]  RX,RY: [");
-        Serial1.print(curentReport.report.RX, DEC);
-        Serial1.print(",");
-        Serial1.print(curentReport.report.RY, DEC);
-        Serial1.println( "]");
-
-      }
-    }
-  }
-}
-
-void saveReportToSD(USB_JoystickReport_Input_t ReportData) {
-  if (myFile) {
-    USB_JoystickReport_SDRec thisReport;
-    thisReport.report = ReportData;
-    thisReport.reportDelay = loopCount;
-
-    char b[sizeof(USB_JoystickReport_SDRec)];
-    memcpy(b, &thisReport, sizeof(USB_JoystickReport_SDRec));
-    if (myFile.write(b, sizeof(b)) > 0) {
-      Serial1.println("saved:");
-    } else {
-      Serial1.println("Error writing");
-    }
-  }
-
-}
-
-
-USB_JoystickReport_SDRec getNextReport() {
-  if (myFile) {
-    USB_JoystickReport_SDRec thisReport;
-    char b[sizeof(USB_JoystickReport_SDRec)];
-    while (myFile.available()) {
-      if (myFile.read(b, sizeof(b)) > 0) {
-        memcpy(b, &thisReport, sizeof(USB_JoystickReport_SDRec));
-      }
-    }
-  } else {
-    Serial1.println("Error No File Open");
-  }
-
-}
-
-void HandalFileOpening(String name, bool Writeing) {
-  IsWriteing = -1;
-  if (myFile) {
-    myFile.close();
-    Serial1.println("myFile.close()");
-  }
-  if (Writeing) {
-    myFile = SD.open(name, FILE_WRITE);
-    if (myFile) {
-      IsWriteing = 1;
-      Serial1.println(name + " Is Writeing");
-    } else {
-      Serial1.println(name + " Error opening for writeing");
-    }
-  } else {
-    myFile = SD.open(name);
-    if (myFile) {
-      IsWriteing = 0;
-      Serial1.println(name + " Is Reading");
-    } else {
-      Serial1.println(name + " Error opening for reading");
-    }
-  }
-}
-#endif
 
 
 // Configures hardware and peripherals, such as the USB peripherals.
@@ -391,6 +175,13 @@ USB_JoystickReport_Input_t runScript(USB_JoystickReport_Input_t* const ReportDat
   }
   return TempReport;
 }
+const int bSize = 100;
+char Buffer[bSize];  // Serial buffer
+int Serialstepcount = 0;
+bool report = false;
+bool SaveToEprom = false;
+
+
 
 void prossesCommandSet() {
   byte _sentencePos = 0;
