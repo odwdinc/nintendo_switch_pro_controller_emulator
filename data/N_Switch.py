@@ -260,26 +260,6 @@ class NS:
 
 		self.sendUSBReport()
 
-	def keyControl(self):
-		while 1:
-				events = get_key()
-				if events:
-					for event in events:
-						#print(event.ev_type, event.code, event.state)
-						if event.code in options:
-							if event.state ==1 :
-								sendcommand[event.code] =True
-							else:
-								sendcommand[event.code] =False
-				commandstring =  b''
-				for command in sendcommand:
-					if sendcommand[command] == True:
-						commandstring += options[command]
-				if len(commandstring) == 0:
-					commandstring = b'$s'
-				self.ser.write(commandstring)
-				print(commandstring)
-
 	def runCommandPlayback(self,commandPlayback,savetoEEPROM=False):
 		cmdStr = b''
 		for command in commandPlayback:

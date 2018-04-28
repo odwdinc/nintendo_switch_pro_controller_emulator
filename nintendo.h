@@ -117,6 +117,7 @@ typedef struct  __attribute__ ((packed)){
 }USB_JoystickReport_SDRec;
 
 
+int duration_count = 0;
 
 
 // The output is structured as a mirror of the input.
@@ -144,6 +145,10 @@ void EVENT_USB_Device_ControlRequest(void);
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData);
 void LoadEEPROM();
 void HandalFileOpening(String name, bool Writeing);
+bool slideSwitch();
+bool clearButton();
+void prossesCommandSet(byte Buffer[]);
+USB_JoystickReport_Input_t runScript(USB_JoystickReport_Input_t* const ReportData, command CommandStep[], int CommandStepSize);
 
 typedef enum {
   SYNC_CONTROLLER,
