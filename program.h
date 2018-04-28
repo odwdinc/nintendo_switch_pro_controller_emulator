@@ -46,7 +46,6 @@ static const command SetupStep[] = {
   { A,         10 },
   { NOTHING,  50 },
 };
-int SetupStepSize = (int)( sizeof(SetupStep) / sizeof(SetupStep[0]));
 
 //Frog Coine Farming
 static const command FrogCoinestep[] = {
@@ -72,6 +71,5 @@ static const command FrogCoinestep[] = {
   { NOTHING,  500 },
   
 };
-int FrogCoinestepSize = (int)( sizeof(FrogCoinestep) / sizeof(FrogCoinestep[0]));
 #endif
 

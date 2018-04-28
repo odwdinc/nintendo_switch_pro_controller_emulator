@@ -94,6 +94,20 @@ typedef enum {
 #define STICK_CENTER 128
 #define STICK_MAX    255
 
+
+#define  EEPROMCommandSize 50
+#define ECHOES 2
+int echoes = 0;
+int bufindex = 0;
+int portsval = 0;
+int IsWriteing = 0;
+bool report = false;
+uint16_t loopCount = 0;
+int Serialstepcount = 0;
+bool SaveToEprom = false;
+bool boot = false;
+bool playingBack = false;
+
 // Joystick HID report structure. We have an input and an output.
 typedef struct  __attribute__ ((packed)){
 	uint16_t Button; // 16 buttons; see JoystickButtons_t for bit mapping
@@ -159,19 +173,13 @@ typedef enum {
 State_t state = SYNC_CONTROLLER;
 
 
-static void flash(uint32_t color){
+USB_JoystickReport_Input_t last_report;
+USB_JoystickReport_Input_t TempReport;
 
-}
+USB_JoystickReport_SDRec curentReport;
 
-static void flashRed(){
-  flash(0xFF0000);
-}
-
-static void flashGreen(){
-  flash(0x00FF00);
-}
-
-
+command prossing;
+command Serialstep[EEPROMCommandSize];
 
 static USB_JoystickReport_Input_t const CommandPROCESS(USB_JoystickReport_Input_t* const ReportData , command ThisCommand){
   switch (ThisCommand.button)

@@ -13,36 +13,12 @@ File myFile;
 
 #endif
 
-#define ECHOES 2
-int echoes = 0;
-USB_JoystickReport_Input_t last_report;
-USB_JoystickReport_Input_t TempReport;
-int report_count = 0;
-int xpos = 0;
-int ypos = 0;
-int bufindex = 0;
-int portsval = 0;
-int IsWriteing = 0;
-
-bool report = false;
-
-USB_JoystickReport_SDRec curentReport;
-uint16_t loopCount = 0;
-
-int Serialstepcount = 0;
-bool SaveToEprom = false;
-
-
-
 const int ClearButtonPin = 2;
 const int SwtichButtonPin = 3;
 
 const int PlayLed = 5;
 
 
-command prossing;
-bool boot = false;
-command Serialstep[50];
 // Main entry point.
 void setup() {
 
@@ -93,7 +69,7 @@ void loop() {
   USB_USBTask();
 }
 
-bool playingBack = false;
+
 
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
@@ -128,7 +104,7 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 
     case PROCESS:
       if (!boot) {
-        TempReport = runScript(ReportData, SetupStep, SetupStepSize);
+        TempReport = runScript(ReportData, SetupStep, -1);
       }
       else if (slideSwitch()) {
         clearButton();
@@ -158,7 +134,7 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
               report = false;
             }
           } else if (in == '#') {
-            byte Buffer[100];
+            byte Buffer[EEPROMCommandSize * 2];
             int prossed = Serial1.readBytesUntil('#', Buffer, 100);
             prossesCommandSet(Buffer);
             if (SaveToEprom) {
@@ -199,9 +175,9 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
           //#############################################################################################
           //#############################################################################################
           //          this is the bit to update the script that will run at boot
-          //          see program.h for sample FrogCoinestep and FrogCoinestepSize
+          //          see program.h for sample FrogCoinestep
 
-          TempReport = runScript(ReportData, FrogCoinestep, FrogCoinestepSize);
+          TempReport = runScript(ReportData, FrogCoinestep, -1);
 
           //#############################################################################################
           //#############################################################################################
@@ -430,6 +406,9 @@ void HID_Task(void) {
 
 
 USB_JoystickReport_Input_t runScript(USB_JoystickReport_Input_t* const ReportData, command CommandStep[], int CommandStepSize) {
+  if (CommandStepSize == -1) {
+    int CommandStepSize = (int)( sizeof(CommandStep) / sizeof(CommandStep[0]));
+  }
   if (bufindex < CommandStepSize) {
     digitalWrite(PlayLed, HIGH);
     prossing = CommandStep[bufindex];
