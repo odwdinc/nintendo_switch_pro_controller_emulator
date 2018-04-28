@@ -95,7 +95,7 @@ typedef enum {
 #define STICK_MAX    255
 
 // Joystick HID report structure. We have an input and an output.
-typedef struct {
+typedef struct  __attribute__ ((packed)){
 	uint16_t Button; // 16 buttons; see JoystickButtons_t for bit mapping
 	uint8_t  HAT;    // HAT switch; one nibble w/ unused nibble
 	uint8_t  LX;     // Left  Stick X
@@ -104,6 +104,20 @@ typedef struct {
 	uint8_t  RY;     // Right Stick Y
 	uint8_t  VendorSpec;
 } USB_JoystickReport_Input_t;
+
+
+bool operator==(const USB_JoystickReport_Input_t& lhs, const USB_JoystickReport_Input_t& rhs)
+{
+   return (lhs.Button == rhs.Button)&&(lhs.HAT == rhs.HAT)&&(lhs.LX == rhs.LX)&&(lhs.LY == rhs.LY)&&(lhs.RX == rhs.RX)&&(lhs.RY == rhs.RY)&&(lhs.VendorSpec == rhs.VendorSpec);
+}
+
+typedef struct  __attribute__ ((packed)){
+  USB_JoystickReport_Input_t report;
+  uint16_t reportDelay;
+}USB_JoystickReport_SDRec;
+
+
+
 
 // The output is structured as a mirror of the input.
 // This is based on initial observations of the Pokken Controller.
@@ -129,6 +143,7 @@ void EVENT_USB_Device_ControlRequest(void);
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData);
 void LoadEEPROM();
+void HandalFileOpening(String name, bool Writeing);
 
 typedef enum {
   SYNC_CONTROLLER,
@@ -139,6 +154,17 @@ typedef enum {
 State_t state = SYNC_CONTROLLER;
 
 
+static void flash(uint32_t color){
+
+}
+
+static void flashRed(){
+  flash(0xFF0000);
+}
+
+static void flashGreen(){
+  flash(0x00FF00);
+}
 
 
 
