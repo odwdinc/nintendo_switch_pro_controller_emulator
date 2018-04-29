@@ -60,7 +60,7 @@ def main():
 	with serial.Serial('COM12', 19200) as ser:
 		mySwitch = NS(ser)
 		"""Jump Using the Prebuile USB Report to Jump Forword called by name"""
-		#mySwitch.sendUSBReportList("Jump")
+		mySwitch.sendUSBReportList("Jump")
 
 		"""Jump Using the Prebuile USB Report to Jump Forword called by ref in ReportPlaybackList"""
 		#mySwitch.sendUSBReportList(NS.ReportPlaybackList[1])

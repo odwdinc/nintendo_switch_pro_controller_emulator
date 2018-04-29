@@ -36,6 +36,7 @@ typedef struct {
 } command; 
 
 
+
 static const command SetupStep[] = {
     // Setup controller
   { NOTHING,  100 },
@@ -46,6 +47,9 @@ static const command SetupStep[] = {
   { A,         10 },
   { NOTHING,  50 },
 };
+
+static int SetupStepStepSize = (int)( sizeof(SetupStep) / sizeof(SetupStep[0]));
+ 
 
 //Frog Coine Farming
 static const command FrogCoinestep[] = {
@@ -71,5 +75,7 @@ static const command FrogCoinestep[] = {
   { NOTHING,  500 },
   
 };
+
+static int FrogCoinestepSize = (int)( sizeof(FrogCoinestep) / sizeof(FrogCoinestep[0]));
 #endif
 

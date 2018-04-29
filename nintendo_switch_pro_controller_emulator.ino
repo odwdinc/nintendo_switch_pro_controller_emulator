@@ -10,14 +10,14 @@
 #ifdef SDCardSupport
 #include <SD.h>
 File myFile;
-
+void printDirectory(File dir, int numTabs);
 #endif
 
 const int ClearButtonPin = 2;
 const int SwtichButtonPin = 3;
 
 const int PlayLed = 5;
-
+File root;
 
 // Main entry point.
 void setup() {
@@ -38,11 +38,16 @@ void setup() {
   GlobalInterruptEnable();
 
   // Once that's done, we'll enter an infinite loop.
+  last_report.HAT = HAT_CENTER;
+  last_report.RY = STICK_CENTER;
+  last_report.RX = STICK_CENTER;
+  last_report.LX = STICK_CENTER;
+  last_report.LY = STICK_CENTER;
 
   Serial1.begin(19200);
 
   Serial1.println("Hello, world?");
-  LoadEEPROM();
+  //LoadEEPROM();
   prossing.button = NOTHING;
 
 #ifdef SDCardSupport
@@ -53,11 +58,12 @@ void setup() {
   }
   Serial1.println("initialization done.");
   readPref();
-
-  HandalFileOpening("log.usb", true);
-  if (myFile) {
-    Serial1.println("Starting Recording..");
+  root = SD.open("/");
+  if (slideSwitch()) {
+    startNewRecording();
   }
+
+
 #endif
   Serial1.println("prossing..");
 }
@@ -69,7 +75,7 @@ void loop() {
   USB_USBTask();
 }
 
-
+bool LasteSwitch = true;
 
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
@@ -81,6 +87,9 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
   ReportData->RX = STICK_CENTER;
   ReportData->RY = STICK_CENTER;
   ReportData->HAT = HAT_CENTER;
+
+
+  memcpy(&TempReport, ReportData, sizeof(USB_JoystickReport_Input_t));
 
   // Repeat ECHOES times the last report
   if (echoes > 0)
@@ -104,20 +113,40 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 
     case PROCESS:
       if (!boot) {
-        TempReport = runScript(ReportData, SetupStep, -1);
+        TempReport = runScript(ReportData, SetupStep, SetupStepStepSize);
       }
       else if (slideSwitch()) {
-        clearButton();
+        if (LasteSwitch == false) {
+          startNewRecording();
+          LasteSwitch = true;
+        }
+
+        digitalWrite(PlayLed, LOW);       // turn off the LED
+        if ( clearButton()) {
+          while ( clearButton()) {
+          }
+          if (Serialstepcount > 0) {
+            Serialstepcount = -1;
+          }
+          else if (Serialstepcount != 0) {
+            Serialstepcount = 0;
+            bufindex = 0;
+            duration_count = 0;
+          } else {
+            Serialstepcount = -1;
+          }
+          startNewRecording();
+        }
+
         if (Serial1.available() > 0) {
+          Serialstepcount = -1;
+
           byte in = Serial1.read();
           if (in == '$') {
             byte Buffer[sizeof(USB_JoystickReport_Input_t)];
             int reportlen = Serial1.readBytes(Buffer, sizeof(USB_JoystickReport_Input_t));
             if (reportlen == sizeof(USB_JoystickReport_Input_t)) {
               memcpy(&TempReport, Buffer, sizeof(USB_JoystickReport_Input_t));
-              report = true;
-            } else {
-              report = false;
             }
           } else if (in == '%') {
             byte Buffer[7];
@@ -129,9 +158,6 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
               TempReport.RX = Buffer[5];
               TempReport.RY = Buffer[6];
               TempReport.Button = ((uint16_t)Buffer[1] << 8) | Buffer[0];
-              report = true;
-            } else {
-              report = false;
             }
           } else if (in == '#') {
             byte Buffer[EEPROMCommandSize * 2];
@@ -140,27 +166,41 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
             if (SaveToEprom) {
               if ( prossed > 1023) {
               } else {
-                EEPROM.write(0, prossed);
+                EEPROM.write(EEPROMCommandStartPos, prossed);
                 for (int i = 1; i < prossed + 1; i++) {
-                  EEPROM.write(i, Buffer[i]);
+                  EEPROM.write(EEPROMCommandStartPos + i, Buffer[i]);
                 }
               }
             }
           }
-          if (report) {
-            memcpy(ReportData, &TempReport, sizeof(USB_JoystickReport_Input_t));
-          }
 
         }
         if (Serialstepcount == 0) {
-          duration_count = 0;
-          bufindex = 0;
-        } else {
+          //#############################################################################################
+          //#############################################################################################
+          //#############################################################################################
+          //          this is the bit to update the script that will run at boot
+          //          see program.h for sample FrogCoinestep
+
+          TempReport = runScript(ReportData, FrogCoinestep, FrogCoinestepSize);
+
+          //#############################################################################################
+          //#############################################################################################
+          //#############################################################################################
+          playingBack = true;
+        } else if (Serialstepcount > 0) {
           TempReport = runScript(ReportData, Serialstep, Serialstepcount);
-          memcpy(ReportData, &TempReport, sizeof(USB_JoystickReport_Input_t));
+          playingBack = true;
+        } else {
+          playingBack = false;
         }
+        memcpy(ReportData, &TempReport, sizeof(USB_JoystickReport_Input_t));
       } else  {
 #ifdef SDCardSupport
+        if (LasteSwitch == true) {
+          HandalFileOpening(LogNumberToLogName(FindLastLog()), false);
+          LasteSwitch = false;
+        }
         PlaybackButton();
         if (playingBack) {
           if (loopCount > curentReport.reportDelay) {
@@ -169,20 +209,7 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
           loopCount++;
           memcpy(ReportData, &curentReport.report, sizeof(USB_JoystickReport_Input_t));
         } else {
-#endif
 
-          //#############################################################################################
-          //#############################################################################################
-          //#############################################################################################
-          //          this is the bit to update the script that will run at boot
-          //          see program.h for sample FrogCoinestep
-
-          TempReport = runScript(ReportData, FrogCoinestep, -1);
-
-          //#############################################################################################
-          //#############################################################################################
-          //#############################################################################################
-#ifdef SDCardSupport
         }
 #endif
 
@@ -206,6 +233,62 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 #ifdef SDCardSupport
 
 
+
+int FindLastLog() {
+  int logNumber = 0;
+  root.seek(0);
+  while (true) {
+    File entry =  root.openNextFile();
+    if (!entry) {
+      // no more files
+      break;
+    }
+    //Serial1.print(entry.name());
+    String name  = String(entry.name());
+    if (name.startsWith("LOG") && name.endsWith(".USB")) {
+      String curentLog = name.substring(4, name.indexOf(".USB"));
+
+      int templogNumber = curentLog.toInt();
+      //Serial1.print(" ");
+      //Serial1.print(entry.size(), DEC);
+      //Serial1.print(" : " + curentLog + ": ");
+      //Serial1.println(templogNumber, DEC);
+
+      if (entry.size() > 8) {
+        if (templogNumber > logNumber) {
+          logNumber = templogNumber;
+        }
+      }
+
+    } else {
+      //Serial1.println("  No Matchg");
+    }
+    entry.close();
+  }
+  return logNumber;
+}
+
+
+
+String LogNumberToLogName(int LogNumber) {
+  return  "log_" + String(LogNumber) + ".usb";
+}
+
+void startNewRecording() {
+  if (myFile) {
+    myFile.close();
+    Serial1.println(String(myFile.name()) + " closed");
+  }
+  int logNumber = FindLastLog();
+  logNumber++;
+  HandalFileOpening(LogNumberToLogName(logNumber), true);
+  if (myFile) {
+    Serial1.println("Starting Recording..");
+  }
+}
+
+
+
 void resetPlayBack() {
   loopCount = 0;
   if (myFile) {
@@ -221,8 +304,10 @@ void PlaybackButton() {
     if (playingBack) {
       resetPlayBack();
       digitalWrite(PlayLed, HIGH);
+      Serial1.println("Playback Started:");
     } else {
       digitalWrite(PlayLed, LOW);
+      Serial1.println("Playback Stoped:");
     }
   }
 }
@@ -233,9 +318,12 @@ void readPref() {
     while (myFile.available()) {
       Serial1.write(myFile.read());
     }
+    Serial1.println("--------------------:");
+    Serial1.println("");
   }
-  HandalFileOpening("log.usb", false);
-  if (myFile) {
+  /*
+    HandalFileOpening("log.usb", false);
+    if (myFile) {
     byte Buffer[sizeof(USB_JoystickReport_SDRec)];
     while (myFile.available()) {
       int reportlen = myFile.read(Buffer, sizeof(USB_JoystickReport_SDRec));
@@ -257,7 +345,8 @@ void readPref() {
 
       }
     }
-  }
+    }
+  */
 }
 
 void saveReportToSD(USB_JoystickReport_Input_t ReportData) {
@@ -269,7 +358,7 @@ void saveReportToSD(USB_JoystickReport_Input_t ReportData) {
     char b[sizeof(USB_JoystickReport_SDRec)];
     memcpy(b, &thisReport, sizeof(USB_JoystickReport_SDRec));
     if (myFile.write(b, sizeof(b)) > 0) {
-      Serial1.println("saved:");
+      Serial1.println("saved: USB report");
     } else {
       Serial1.println("Error writing");
     }
@@ -406,9 +495,6 @@ void HID_Task(void) {
 
 
 USB_JoystickReport_Input_t runScript(USB_JoystickReport_Input_t* const ReportData, command CommandStep[], int CommandStepSize) {
-  if (CommandStepSize == -1) {
-    int CommandStepSize = (int)( sizeof(CommandStep) / sizeof(CommandStep[0]));
-  }
   if (bufindex < CommandStepSize) {
     digitalWrite(PlayLed, HIGH);
     prossing = CommandStep[bufindex];
@@ -422,10 +508,11 @@ USB_JoystickReport_Input_t runScript(USB_JoystickReport_Input_t* const ReportDat
     }
     return TempReport;
   } else if ( !boot) {
-    bufindex = 0;
-    duration_count = 0;
     boot = true;
   }
+  bufindex = 0;
+  duration_count = 0;
+
   digitalWrite(PlayLed, LOW);
   TempReport.LX = STICK_CENTER;
   TempReport.LY = STICK_CENTER;
@@ -467,12 +554,12 @@ void prossesCommandSet(byte Buffer[]) {
 }
 
 void LoadEEPROM() {
-  int CommandLen = EEPROM.read(0);
+  int CommandLen = EEPROM.read(EEPROMCommandStartPos);
   byte Buffer[CommandLen];
   if (CommandLen > 0) {
     memset(Buffer, 0, sizeof(Buffer));
     for (int i = 0; i < CommandLen; i++) {
-      Buffer[i] = EEPROM.read(i + 1);
+      Buffer[i] = EEPROM.read(EEPROMCommandStartPos + i + 1);
     }
     prossesCommandSet(Buffer);
     if (Serialstepcount > 0) {
@@ -493,8 +580,6 @@ bool slideSwitch() {
 
 bool clearButton() {
   if (digitalRead(ClearButtonPin) == 0) {
-    Serialstepcount = 0;
-    report = false;
     return true;
   }
   return false;

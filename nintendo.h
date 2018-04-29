@@ -94,16 +94,17 @@ typedef enum {
 #define STICK_CENTER 128
 #define STICK_MAX    255
 
-
+#define EEPROMCommandStartPos  20
 #define  EEPROMCommandSize 50
+#define EEPROMCommandlog 19
+
 #define ECHOES 2
 int echoes = 0;
 int bufindex = 0;
 int portsval = 0;
 int IsWriteing = 0;
-bool report = false;
 uint16_t loopCount = 0;
-int Serialstepcount = 0;
+int Serialstepcount = -1;
 bool SaveToEprom = false;
 bool boot = false;
 bool playingBack = false;
@@ -161,9 +162,10 @@ void LoadEEPROM();
 void HandalFileOpening(String name, bool Writeing);
 bool slideSwitch();
 bool clearButton();
+void readPref();
 void prossesCommandSet(byte Buffer[]);
 USB_JoystickReport_Input_t runScript(USB_JoystickReport_Input_t* const ReportData, command CommandStep[], int CommandStepSize);
-
+void startNewRecording();
 typedef enum {
   SYNC_CONTROLLER,
   SYNC_POSITION,
@@ -171,6 +173,7 @@ typedef enum {
   PROCESS
 } State_t;
 State_t state = SYNC_CONTROLLER;
+
 
 
 USB_JoystickReport_Input_t last_report;
