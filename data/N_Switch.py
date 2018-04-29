@@ -1,11 +1,15 @@
 import io
-from time import sleep,time
+from time import sleep
 import struct
 from numpy import interp
 from inputs import get_key
 from inputs import get_gamepad
 import copy
-current_milli_time = lambda: int(round(time() * 1000))
+import datetime
+
+def TimestampMillisec64():
+    return int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds() * 1000) 
+
 def milli_time_to_report_time(x): return  int(round(x/ 1000/.024))
 
 class NS:
@@ -133,7 +137,7 @@ class NS:
 		"ABS_Z": [SWITCH_ZL,False], 
 		"ABS_RZ": [SWITCH_ZR,False],
 	}
-	joyLoopTime = 0
+	USBLoopTime = 0
 	
 
 	sendcommand = {}
@@ -163,13 +167,12 @@ class NS:
 		min_Stick_Map = 5000
 		max_Stick_Map = 33000
 		while 1:
-			prosingTime = current_milli_time()
 			event = get_gamepad()[0]
 			if self.recoredJoystickCommandCount == 0:
-				self.RunStart = current_milli_time()
+				self.RunStart = TimestampMillisec64()
 
 			if timeout > 0:
-				if (current_milli_time() - self.RunStart)/1000 > timeout :
+				if (TimestampMillisec64() - self.RunStart)/1000 > timeout :
 					self.printRunCommands()
 					break
 			if event.code not in self.JoyoOptionsRemove:
@@ -233,15 +236,10 @@ class NS:
 							self.recoredJoystickCommandCount += 1
 					else:
 						
-						self.sendUSBReport(self.JoyStringOut["SWITCH"],self.JoyStringOut["HAT"],self.JoyStringOut["LX"],self.JoyStringOut["LY"],self.JoyStringOut["RX"],self.JoyStringOut["RY"])
-						mills = current_milli_time()
-						#mills = mills - (mills - prosingTime)
-						if (self.joyLoopTime == 0):
-							self.joyLoopTime = mills
+						LastCommandDelay = self.sendUSBReport(self.JoyStringOut["SWITCH"],self.JoyStringOut["HAT"],self.JoyStringOut["LX"],self.JoyStringOut["LY"],self.JoyStringOut["RX"],self.JoyStringOut["RY"])
 						
 						if self.recoredJoystickCommandCount > 0:
-							delayTime = (mills - self.joyLoopTime)/1000
-							self.recoredJoystickCommandSet[self.recoredJoystickCommandCount-1]["TIME"] = delayTime
+							self.recoredJoystickCommandSet[self.recoredJoystickCommandCount-1]["TIME"] = LastCommandDelay
 							self.recoredJoystickCommandSet.append(copy.deepcopy(self.JoyStringOut))
 							self.recoredJoystickCommandCount += 1
 						else:
@@ -250,38 +248,17 @@ class NS:
 							self.recoredJoystickCommandCount +=1
 
 						if(self.recoredJoystickCommandCount > 1 and timeout == 0 and stopButton==0):
-							print(self.recoredJoystickCommandSet[self.recoredJoystickCommandCount-2],self.recoredJoystickCommandCount)
+							print(self.recoredJoystickCommandSet[self.recoredJoystickCommandCount-2],", #",self.recoredJoystickCommandCount)
 						sleep(.025)
-						self.joyLoopTime = current_milli_time()
 
 
 	def RunJoystickReport(self, reportList):
+		self.USBLoopTime = 0
 		for report in reportList:
-			mills = current_milli_time()
 			self.sendUSBReport(report["SWITCH"],report["HAT"],report["LX"],report["LY"],report["RX"],report["RY"])
-			timedelay = (current_milli_time() - mills)/1000
-			sleep(report["TIME"]+.025)
+			sleep(report["TIME"])
 
 		self.sendUSBReport()
-	def keyControl(self):
-		while 1:
-				events = get_key()
-				if events:
-					for event in events:
-						#print(event.ev_type, event.code, event.state)
-						if event.code in options:
-							if event.state ==1 :
-								sendcommand[event.code] =True
-							else:
-								sendcommand[event.code] =False
-				commandstring =  b''
-				for command in sendcommand:
-					if sendcommand[command] == True:
-						commandstring += options[command]
-				if len(commandstring) == 0:
-					commandstring = b'$s'
-				self.ser.write(commandstring)
-				print(commandstring)
 
 	def runCommandPlayback(self,commandPlayback,savetoEEPROM=False):
 		cmdStr = b''
@@ -320,10 +297,18 @@ class NS:
 		RY = self.sendUSBReportCheck(RY);
 
 		SWITCH0, SWITCH1 = struct.pack('<H', SWITCH)
-		rpstring = b'%'+bytes([SWITCH0])+bytes([SWITCH1])+bytes([HAT])+bytes([LX])+bytes([LY])+bytes([RX])+bytes([RY])
+		rpstring = b'%'+bytes([SWITCH0])+bytes([SWITCH1])+bytes([HAT])+bytes([LX])+bytes([LY])+bytes([RX])+bytes([RY])+bytes([0])
 		#print(rpstring,len(rpstring))
 		#self.ser.write(b'%')
 		self.ser.write(rpstring)
+		timeSTMP = TimestampMillisec64()
+		if self.USBLoopTime == 0:
+			self.USBLoopTime = timeSTMP
+			return 0
+		else:
+			timeOUT = (timeSTMP - self.USBLoopTime)/1000
+			self.USBLoopTime = timeSTMP
+			return timeOUT
 
 	def sendUSBReportList(self, ReportPlayback):
 		if ReportPlayback is "HatJump":

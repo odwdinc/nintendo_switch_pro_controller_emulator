@@ -94,8 +94,23 @@ typedef enum {
 #define STICK_CENTER 128
 #define STICK_MAX    255
 
+#define EEPROMCommandStartPos  20
+#define  EEPROMCommandSize 50
+#define EEPROMCommandlog 19
+
+#define ECHOES 2
+int echoes = 0;
+int bufindex = 0;
+int portsval = 0;
+int IsWriteing = 0;
+uint16_t loopCount = 0;
+int Serialstepcount = -1;
+bool SaveToEprom = false;
+bool boot = false;
+bool playingBack = false;
+
 // Joystick HID report structure. We have an input and an output.
-typedef struct {
+typedef struct  __attribute__ ((packed)){
 	uint16_t Button; // 16 buttons; see JoystickButtons_t for bit mapping
 	uint8_t  HAT;    // HAT switch; one nibble w/ unused nibble
 	uint8_t  LX;     // Left  Stick X
@@ -104,6 +119,21 @@ typedef struct {
 	uint8_t  RY;     // Right Stick Y
 	uint8_t  VendorSpec;
 } USB_JoystickReport_Input_t;
+
+
+bool operator==(const USB_JoystickReport_Input_t& lhs, const USB_JoystickReport_Input_t& rhs)
+{
+   return (lhs.Button == rhs.Button)&&(lhs.HAT == rhs.HAT)&&(lhs.LX == rhs.LX)&&(lhs.LY == rhs.LY)&&(lhs.RX == rhs.RX)&&(lhs.RY == rhs.RY)&&(lhs.VendorSpec == rhs.VendorSpec);
+}
+
+typedef struct  __attribute__ ((packed)){
+  USB_JoystickReport_Input_t report;
+  uint16_t reportDelay;
+}USB_JoystickReport_SDRec;
+
+
+int duration_count = 0;
+
 
 // The output is structured as a mirror of the input.
 // This is based on initial observations of the Pokken Controller.
@@ -129,7 +159,13 @@ void EVENT_USB_Device_ControlRequest(void);
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData);
 void LoadEEPROM();
-
+void HandalFileOpening(String name, bool Writeing);
+bool slideSwitch();
+bool clearButton();
+void readPref();
+void prossesCommandSet(byte Buffer[]);
+USB_JoystickReport_Input_t runScript(USB_JoystickReport_Input_t* const ReportData, command CommandStep[], int CommandStepSize);
+void startNewRecording();
 typedef enum {
   SYNC_CONTROLLER,
   SYNC_POSITION,
@@ -140,7 +176,13 @@ State_t state = SYNC_CONTROLLER;
 
 
 
+USB_JoystickReport_Input_t last_report;
+USB_JoystickReport_Input_t TempReport;
 
+USB_JoystickReport_SDRec curentReport;
+
+command prossing;
+command Serialstep[EEPROMCommandSize];
 
 static USB_JoystickReport_Input_t const CommandPROCESS(USB_JoystickReport_Input_t* const ReportData , command ThisCommand){
   switch (ThisCommand.button)

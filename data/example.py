@@ -6,14 +6,6 @@ from time import sleep
 	sendUSBReport(SWITCH=0,HAT = HAT_CENTER,LX = STICK_CENTER,LY = STICK_CENTER,RX = STICK_CENTER,RY = STICK_CENTER)
 	sendUSBReportList(ReportPlayback):
 		ReportPlaybackList["HatJump","Jump"]
-	keyControl()
-		"KEY_W" : UP, #up
-		"KEY_A": LEFT,	#left
-		"KEY_S" : DOWN, #down
-		"KEY_D" : RIGHT,	#right
-		"KEY_SPACE": B, #B
-		"KEY_LEFTCTRL": A, #A
-		"KEY_LEFTSHIFT": Y, #Y
 		
 """
 #[time scaled] == TimeInSec/.024
@@ -68,7 +60,7 @@ def main():
 	with serial.Serial('COM12', 19200) as ser:
 		mySwitch = NS(ser)
 		"""Jump Using the Prebuile USB Report to Jump Forword called by name"""
-		#mySwitch.sendUSBReportList("Jump")
+		mySwitch.sendUSBReportList("Jump")
 
 		"""Jump Using the Prebuile USB Report to Jump Forword called by ref in ReportPlaybackList"""
 		#mySwitch.sendUSBReportList(NS.ReportPlaybackList[1])
