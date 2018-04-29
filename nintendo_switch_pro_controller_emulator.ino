@@ -5,19 +5,21 @@
 #include "program.h"
 #include <Wire.h>
 
-#define SDCardSupport
+//Comment this line out if you do not want SD card support.
+//#define SDCardSupport
 
 #ifdef SDCardSupport
 #include <SD.h>
 File myFile;
 void printDirectory(File dir, int numTabs);
+File root;
 #endif
 
 const int ClearButtonPin = 2;
 const int SwtichButtonPin = 3;
 
 const int PlayLed = 5;
-File root;
+
 
 // Main entry point.
 void setup() {
@@ -47,7 +49,7 @@ void setup() {
   Serial1.begin(19200);
 
   Serial1.println("Hello, world?");
-  //LoadEEPROM();
+  LoadEEPROM();
   prossing.button = NOTHING;
 
 #ifdef SDCardSupport
@@ -117,7 +119,9 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
       }
       else if (slideSwitch()) {
         if (LasteSwitch == false) {
+#ifdef SDCardSupport
           startNewRecording();
+#endif
           LasteSwitch = true;
         }
 
@@ -135,7 +139,9 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
           } else {
             Serialstepcount = -1;
           }
+#ifdef SDCardSupport
           startNewRecording();
+#endif
         }
 
         if (Serial1.available() > 0) {
