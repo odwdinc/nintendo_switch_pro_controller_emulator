@@ -61,6 +61,26 @@
     #include <LUFA/LUFA/Drivers/USB/USB.h>
     #include <LUFA/LUFA/Platform/Platform.h>
 
+
+#define HAT_TOP          0x00
+#define HAT_TOP_RIGHT    0x01
+#define HAT_RIGHT        0x02
+#define HAT_BOTTOM_RIGHT 0x03
+#define HAT_BOTTOM       0x04
+#define HAT_BOTTOM_LEFT  0x05
+#define HAT_LEFT         0x06
+#define HAT_TOP_LEFT     0x07
+#define HAT_CENTER       0x08
+
+#define STICK_MIN      0
+#define STICK_CENTER 128
+#define STICK_MAX    255
+
+#define EEPROMCommandStartPos  20
+#define  EEPROMCommandSize 40
+#define EEPROMCommandlog 19
+#define ECHOES 2
+
 // Type Defines
 // Enumeration for joystick buttons.
 typedef enum {
@@ -79,35 +99,6 @@ typedef enum {
 	SWITCH_HOME    = 0x1000,
 	SWITCH_CAPTURE = 0x2000,
 } JoystickButtons_t;
-
-#define HAT_TOP          0x00
-#define HAT_TOP_RIGHT    0x01
-#define HAT_RIGHT        0x02
-#define HAT_BOTTOM_RIGHT 0x03
-#define HAT_BOTTOM       0x04
-#define HAT_BOTTOM_LEFT  0x05
-#define HAT_LEFT         0x06
-#define HAT_TOP_LEFT     0x07
-#define HAT_CENTER       0x08
-
-#define STICK_MIN      0
-#define STICK_CENTER 128
-#define STICK_MAX    255
-
-#define EEPROMCommandStartPos  20
-#define  EEPROMCommandSize 50
-#define EEPROMCommandlog 19
-
-#define ECHOES 2
-int echoes = 0;
-int bufindex = 0;
-int portsval = 0;
-int IsWriteing = 0;
-uint16_t loopCount = 0;
-int Serialstepcount = -1;
-bool SaveToEprom = false;
-bool boot = false;
-bool playingBack = false;
 
 // Joystick HID report structure. We have an input and an output.
 typedef struct  __attribute__ ((packed)){
@@ -132,7 +123,7 @@ typedef struct  __attribute__ ((packed)){
 }USB_JoystickReport_SDRec;
 
 
-int duration_count = 0;
+
 
 
 // The output is structured as a mirror of the input.
@@ -145,6 +136,14 @@ typedef struct  __attribute__ ((packed)) {
 	uint8_t  RX;     // Right Stick X
 	uint8_t  RY;     // Right Stick Y
 } USB_JoystickReport_Output_t;
+
+typedef enum {
+  SYNC_CONTROLLER,
+  BREATHE,
+  PROCESS
+} State_t;
+
+
 
 // Function Prototypes
 // Setup all necessary hardware, including USB initialization.
@@ -166,31 +165,39 @@ void readPref();
 void prossesCommandSet(byte Buffer[]);
 USB_JoystickReport_Input_t runScript(USB_JoystickReport_Input_t* const ReportData, command CommandStep[], int CommandStepSize);
 void startNewRecording();
-typedef enum {
-  SYNC_CONTROLLER,
-  SYNC_POSITION,
-  BREATHE,
-  PROCESS
-} State_t;
+
+
+int echoes = 0;
+int bufindex = 0;
+int portsval = 0;
+int IsWriteing = 0;
+uint16_t loopCount = 0;
+int Serialstepcount = -1;
+bool SaveToEprom = false;
+bool boot = false;
+bool playingBack = false;
+int duration_count = 0;
+
+
 State_t state = SYNC_CONTROLLER;
 
-
-
 USB_JoystickReport_Input_t last_report;
-USB_JoystickReport_Input_t TempReport;
-
 USB_JoystickReport_SDRec curentReport;
 
 command prossing;
 command Serialstep[EEPROMCommandSize];
+command LastProssing;
+
 
 static USB_JoystickReport_Input_t const CommandPROCESS(USB_JoystickReport_Input_t* const ReportData , command ThisCommand){
+  bool printCommand = (LastProssing.button != ThisCommand.button);
+  LastProssing = ThisCommand;
   switch (ThisCommand.button)
       {
 
         case UP:
           ReportData->LY = STICK_MIN;
-          Serial1.println("UP");       
+          if(printCommand) Serial1.println("UP");       
           break;
 
         case LEFT:
@@ -199,38 +206,38 @@ static USB_JoystickReport_Input_t const CommandPROCESS(USB_JoystickReport_Input_
 
         case DOWN:
           ReportData->LY = STICK_MAX;
-          Serial1.println("DOWN");       
+          if(printCommand) Serial1.println("DOWN");       
           break;
 
         case RIGHT:
           ReportData->LX = STICK_MAX;
-          Serial1.println("RIGHT");       
+          if(printCommand) Serial1.println("RIGHT");       
           break;
 
         case UP_RIGHT:
           ReportData->LY = STICK_MIN;
           ReportData->LX = STICK_MAX; 
-          Serial1.println("UP_RIGHT");
+          if(printCommand) Serial1.println("UP_RIGHT");
           break;
         case UP_LEFT:
           ReportData->LY = STICK_MIN;
           ReportData->LX = STICK_MIN;
-          Serial1.println("UP_LEFT");
+          if(printCommand)  Serial1.println("UP_LEFT");
           break;
         case DOWN_RIGHT:
           ReportData->LY = STICK_MAX;
           ReportData->LX = STICK_MAX;
-          Serial1.println("DOWN_RIGHT");
+          if(printCommand)  Serial1.println("DOWN_RIGHT");
           break;
         case DOWN_LEFT:
           ReportData->LY = STICK_MAX;
           ReportData->LX = STICK_MIN;
-          Serial1.println("DOWN_LEFT");
+          if(printCommand) Serial1.println("DOWN_LEFT");
           break;
 
         case A:
           ReportData->Button |= SWITCH_A;
-          Serial1.println("A");
+          if(printCommand) Serial1.println("A");
           break;
 
         case B:
@@ -240,7 +247,7 @@ static USB_JoystickReport_Input_t const CommandPROCESS(USB_JoystickReport_Input_
 
         case R:
           ReportData->Button |= SWITCH_R;
-          Serial1.println("R");
+          if(printCommand) Serial1.println("R");
           break;
           
         case L:
@@ -250,33 +257,33 @@ static USB_JoystickReport_Input_t const CommandPROCESS(USB_JoystickReport_Input_
           
         case X:
           ReportData->Button |= SWITCH_X;
-          Serial1.println("X");
+          if(printCommand) Serial1.println("X");
           break;
           
         case Y:
           ReportData->Button |= SWITCH_Y;
-          Serial1.println("Y");
+          if(printCommand) Serial1.println("Y");
           break;
 
        case MINUS:
           ReportData->Button |= SWITCH_MINUS;
-          Serial1.println("MINUS");
+          if(printCommand) Serial1.println("MINUS");
           break;
           
         case PLUS:
           ReportData->Button |= SWITCH_PLUS;
-          Serial1.println("PLUS");
+          if(printCommand) Serial1.println("PLUS");
           break;
           
         case THROW:
           ReportData->LY = STICK_MIN;       
           ReportData->Button |= SWITCH_R;
-          Serial1.println("THROWWN");
+          if(printCommand) Serial1.println("THROWWN");
           break;
 
         case TRIGGERS:
           ReportData->Button |= SWITCH_L | SWITCH_R;
-          Serial1.println("TRIGGERS");
+          if(printCommand) Serial1.println("TRIGGERS");
           break;
 
         default:
@@ -285,6 +292,7 @@ static USB_JoystickReport_Input_t const CommandPROCESS(USB_JoystickReport_Input_
           ReportData->RX = STICK_CENTER;
           ReportData->RY = STICK_CENTER;
           ReportData->HAT = HAT_CENTER;
+          if(printCommand) Serial1.println("CENTERED");
           break;
       }
       return *ReportData;

@@ -6,7 +6,7 @@
 #include <Wire.h>
 
 //Comment this line out if you do not want SD card support.
-//#define SDCardSupport
+#define SDCardSupport
 
 #ifdef SDCardSupport
 #include <SD.h>
@@ -49,7 +49,6 @@ void setup() {
   Serial1.begin(19200);
 
   Serial1.println("Hello, world?");
-  LoadEEPROM();
   prossing.button = NOTHING;
 
 #ifdef SDCardSupport
@@ -90,7 +89,7 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
   ReportData->RY = STICK_CENTER;
   ReportData->HAT = HAT_CENTER;
 
-
+  USB_JoystickReport_Input_t TempReport;
   memcpy(&TempReport, ReportData, sizeof(USB_JoystickReport_Input_t));
 
   // Repeat ECHOES times the last report
@@ -182,17 +181,24 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 
         }
         if (Serialstepcount == 0) {
-          //#############################################################################################
-          //#############################################################################################
-          //#############################################################################################
-          //          this is the bit to update the script that will run at boot
-          //          see program.h for sample FrogCoinestep
+          LoadEEPROM(); // will atemnt to load the Plogram stored on EEPROM
+          if (Serialstepcount == 0) {
+            Serial1.println("Running Default Falsh Program");
+            //#############################################################################################
+            //#############################################################################################
+            //#############################################################################################
+            //          this is the bit to update the script that will run at boot
+            //          see program.h for sample FrogCoinestep
 
-          TempReport = runScript(ReportData, FrogCoinestep, FrogCoinestepSize);
+            TempReport = runScript(ReportData, FrogCoinestep, FrogCoinestepSize);
 
-          //#############################################################################################
-          //#############################################################################################
-          //#############################################################################################
+
+            //#############################################################################################
+            //#############################################################################################
+            //#############################################################################################
+          } else {
+            Serial1.println("Loaded EEPROM Program");
+          }
           playingBack = true;
         } else if (Serialstepcount > 0) {
           TempReport = runScript(ReportData, Serialstep, Serialstepcount);
@@ -290,6 +296,8 @@ void startNewRecording() {
   HandalFileOpening(LogNumberToLogName(logNumber), true);
   if (myFile) {
     Serial1.println("Starting Recording..");
+  } else {
+    Serial1.println("Error Starting Recording..");
   }
 }
 
@@ -374,8 +382,15 @@ void saveReportToSD(USB_JoystickReport_Input_t ReportData) {
 
 
 USB_JoystickReport_SDRec getNextReport() {
+  USB_JoystickReport_SDRec thisReport;
+  thisReport.report.HAT = HAT_CENTER;
+  thisReport.report.RY = STICK_CENTER;
+  thisReport.report.RX = STICK_CENTER;
+  thisReport.report.LX = STICK_CENTER;
+  thisReport.report.LY = STICK_CENTER;
+  thisReport.reportDelay = 1;
+
   if (myFile) {
-    USB_JoystickReport_SDRec thisReport;
     char b[sizeof(USB_JoystickReport_SDRec)];
     while (myFile.available()) {
       if (myFile.read(b, sizeof(b)) > 0) {
@@ -385,7 +400,7 @@ USB_JoystickReport_SDRec getNextReport() {
   } else {
     Serial1.println("Error No File Open");
   }
-
+  return thisReport;
 }
 
 void HandalFileOpening(String name, bool Writeing) {
@@ -501,11 +516,12 @@ void HID_Task(void) {
 
 
 USB_JoystickReport_Input_t runScript(USB_JoystickReport_Input_t* const ReportData, command CommandStep[], int CommandStepSize) {
+  USB_JoystickReport_Input_t TempReport;
+
   if (bufindex < CommandStepSize) {
     digitalWrite(PlayLed, HIGH);
     prossing = CommandStep[bufindex];
-
-    USB_JoystickReport_Input_t TempReport = CommandPROCESS(ReportData, prossing);
+    TempReport = CommandPROCESS(ReportData, prossing);
     duration_count++;
     if (duration_count > prossing.duration)
     {
