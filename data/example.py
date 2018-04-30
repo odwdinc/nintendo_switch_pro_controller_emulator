@@ -19,14 +19,14 @@ frogCoineFarming = [
 	[ NS.NOTHING,   10 ],
 	[ NS.R,          5 ],
 	[ NS.NOTHING,   20 ],
-	[ NS.UP,       120 ],
+	[ NS.UP,       110 ],
 	[ NS.LEFT,      15 ], #5
 	[ NS.NOTHING,   10 ],
-	[ NS.UP,       190 ],
+	[ NS.UP,       170 ],
 	[ NS.LEFT,      10 ],
 	# Capture Coin Froge
 	[ NS.Y,         20 ],
-	[ NS.NOTHING,  200 ], #10
+	[ NS.NOTHING,  180 ], #10
 	# Return to WayPoint
 	[ NS.MINUS,     5 ],
 	[ NS.NOTHING,  40 ],
@@ -35,7 +35,7 @@ frogCoineFarming = [
 	[ NS.A,         5 ], #15
 	[ NS.NOTHING, 250 ],
 	[ NS.NOTHING, 250 ],
-	[ NS.NOTHING, 200 ] #18
+	[ NS.NOTHING, 50 ] #18
 ]
 
 """ Simple Jump Test """
@@ -60,13 +60,13 @@ def main():
 	with serial.Serial('COM12', 19200) as ser:
 		mySwitch = NS(ser)
 		"""Jump Using the Prebuile USB Report to Jump Forword called by name"""
-		mySwitch.sendUSBReportList("Jump")
+		#mySwitch.sendUSBReportList("HatJump")
 
 		"""Jump Using the Prebuile USB Report to Jump Forword called by ref in ReportPlaybackList"""
 		#mySwitch.sendUSBReportList(NS.ReportPlaybackList[1])
 
 		""" Runs the Command Set "frogCoineFarming" and saves to EEPROM """
-		#mySwitch.runCommandPlayback(frogCoineFarming,True)
+		mySwitch.runCommandPlayback(frogCoineFarming)
 
 		""" Runs the Command Set "farmTEST" """
 		#mySwitch.runCommandPlayback(farmTEST)
@@ -77,13 +77,13 @@ def main():
 		#mySwitch.sendUSBReport(SWITCH=mySwitch.SWITCH_A,LY=mySwitch.STICK_MIN)
 		#sleep(.5)
 		#mySwitch.sendUSBReport()
-		pass
-	with serial.Serial('COM12', 19200,timeout=10) as ser:
-		while True:
-			line = ser.readline()
-			if len(line)==0:
-				break
-			print(line)
+		#pass
+		#with serial.Serial('COM12', 19200,timeout=5) as ser:
+		# while True:
+		# 	line = ser.readline()
+		# 	if len(line)==0:
+		# 		break
+		# 	print(line)
 
 if __name__ == "__main__":
 	main()

@@ -297,9 +297,8 @@ class NS:
 		RY = self.sendUSBReportCheck(RY);
 
 		SWITCH0, SWITCH1 = struct.pack('<H', SWITCH)
-		rpstring = b'%'+bytes([SWITCH0])+bytes([SWITCH1])+bytes([HAT])+bytes([LX])+bytes([LY])+bytes([RX])+bytes([RY])+bytes([0])
-		#print(rpstring,len(rpstring))
-		#self.ser.write(b'%')
+		rpstring = b'$'+bytes([SWITCH0])+bytes([SWITCH1])+bytes([HAT])+bytes([LX])+bytes([LY])+bytes([RX])+bytes([RY])+bytes([0])
+		
 		self.ser.write(rpstring)
 		timeSTMP = TimestampMillisec64()
 		if self.USBLoopTime == 0:

@@ -53,26 +53,29 @@ static int SetupStepStepSize = (int)( sizeof(SetupStep) / sizeof(SetupStep[0]));
 
 //Frog Coine Farming
 static const command FrogCoinestep[] = {
-  // Find Froge
-  { NOTHING,  50 },
+  // Find Coin Froge
+  { NOTHING,  10 },
   { DOWN,      20 }, // Start Down the hall
   { NOTHING,  10 },
   { R,         5 },
   { NOTHING,  20 },
-  { UP,       120 },
+  { UP,       110 },
   { LEFT,     15 },
   { NOTHING,  10 },
-  { UP,       190},
+  { UP,       180},
   { LEFT,     10 },
+  // Capture Coin Froge
   { Y,        20 },
-  { NOTHING,  200 },
-  
+  { NOTHING,  180 },
+  //Return to WayPoint
   { MINUS,     5 },//Eding
   { NOTHING,  40 },
   { UP,       5 },
   { NOTHING,  20 },
   { A,         5 },
-  { NOTHING,  500 },
+  { NOTHING,  250 },
+  { NOTHING,  250 },
+  { NOTHING,  50 },
   
 };
 
